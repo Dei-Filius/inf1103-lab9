@@ -1,5 +1,7 @@
 class Supplier:
     def __init__(self, supplier_id: str, name: str, email: str) -> None:
+        if not (supplier_id.startswith("S") or supplier_id[1:].isdigit()):
+            raise ValueError()
         self.__supplier_id: str = supplier_id
         self.__name: str = name
         self.__contact_email: str = email

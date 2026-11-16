@@ -10,6 +10,13 @@ class Product(ABC):
     def __init__(
         self, product_id: str, name: str, price: float, stock: int, supplier: Supplier
     ) -> None:
+        if not (product_id.startswith("P") or product_id[1:].isdigit()):
+            raise ValueError("A product ID must start with P and is followed by digits.")
+        if price <= 0:
+            raise ValueError("A product price must be greater than zero.")
+        if stock < 0:
+            raise ValueError("A product stock cannot be negative.")
+
         self.__product_id: str = product_id
         self.__name: str = name
         self.__price: float = price

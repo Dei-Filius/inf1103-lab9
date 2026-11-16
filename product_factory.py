@@ -5,11 +5,8 @@ from supplier import Supplier
 from utils import (
     get_email_input,
     get_int_input,
-    get_price_input,
-    get_product_id_input,
-    get_product_type_input,
+    get_float_input,
     get_str_input,
-    get_supplier_id_input,
 )
 
 
@@ -47,13 +44,13 @@ class ProductFactory:
     def create_from_input() -> Product:
         print()
         print("Add New Product")
-        product_id = get_product_id_input()
 
+        product_type = get_str_input("Product Type: ").strip()
+        product_id = get_str_input("Product ID (Pxxx): ").strip()
         name = get_str_input("Product Name: ").strip()
-        price = get_price_input("Price (omit $ sign): ")
+        price = get_float_input("Price (omit $ sign): ")
         stock = get_int_input("Stock Quantity: ", 0)
-        product_type = get_product_type_input()
-        supplier_id = get_supplier_id_input()
+        supplier_id = get_str_input("Supplier ID (Sxxx): ").strip()
         supplier_name = get_str_input("Supplier Name: ")
         supplier_contact_email = get_email_input("Supplier Contact Email: ")
 

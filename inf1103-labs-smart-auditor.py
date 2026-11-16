@@ -1,4 +1,5 @@
-import json
+# import json
+import csv
 from datetime import datetime
 from pathlib import Path
 
@@ -7,73 +8,83 @@ from order import Order
 from product import Product
 from product_factory import ProductFactory
 from supplier import Supplier
-from utils import (
-    get_int_input,
-    get_product_id_input,
-)
+from utils import get_int_input, get_str_input, display_menu
 
-INVENTORY_FILE_PATH: str = "data/inventory.json"
+INVENTORY_FILE_PATH: str = "data/products.csv"
 inventory_file: Path = Path(INVENTORY_FILE_PATH)
 
 
-def load_inventory() -> Inventory:
+def load_inventory(
+    inventory_file: Path, inventory: Inventory, supplier: Supplier
+) -> None:
     print()
     print("Loading inventory...")
     inventory = Inventory()
     try:
-        with inventory_file.open("r") as file:
-            for product_info in json.load(file):
-                product_info: dict
-                supplier_info = product_info["supplier"]
-                supplier = Supplier(
-                    supplier_info["id"],
-                    supplier_info["name"],
-                    supplier_info["contact_email"],
-                )
-                product = ProductFactory().create(
-                    product_info["type"],
-                    product_info["id"],
-                    product_info["name"],
-                    product_info["price"],
-                    product_info["stock"],
-                    supplier,
-                    weight=product_info.get("weight"),
-                    download_size=product_info.get("download_size"),
-                )
-                inventory.add_product(product)
+        file = inventory_file.open("r")
     except FileNotFoundError:
-        inventory_file.parent.mkdir(parents=True, exist_ok=True)
-        inventory_file.touch()
-    except (json.JSONDecodeError, ValueError) as err:
-        print("Inventory file might be corrupted.")
-        print(f"Error Msg: {err}")
-        print("Exiting...")
-        exit()
-    return inventory
+        # inventory_file.parent.mkdir(parents=True, exist_ok=True)
+        # inventory_file.touch()
+        print(f"Products file not found: {INVENTORY_FILE_PATH}")
+    else:
+        with file:
+            # product_type, product_id, name, price, stock_quantity
+            csv_reader = csv.DictReader(file)
+            for idx, product_info in enumerate(csv_reader):
+                try:
+                    product_info: dict
+                    product = ProductFactory().create(
+                        product_info["product__type"],
+                        product_info["product_id"],
+                        product_info["name"],
+                        product_info["price"],
+                        product_info["stock_quantity"],
+                        supplier,
+                        weight=product_info.get("weight"),
+                        download_size=product_info.get("download_size"),
+                    )
+                    inventory.add_product(product)
+                except ValueError as err:
+                    print(f"Error loading product in row {idx}: {err}")
+    return
 
 
 def save_inventory(inventory: Inventory) -> None:
     print()
     print("Saving inventory...")
-    with inventory_file.open("w") as file:
-        json.dump(inventory.to_list(), file, indent=4)
+    with open("output.csv", mode="w", newline="") as file:
+        csv_writer = csv.DictWriter(
+            file,
+            fieldnames=[
+                "product_type",
+                "product_id",
+                "name",
+                "price",
+                "stock_quantity",
+            ],
+        )
+        csv_writer.writeheader()
+        csv_writer.writerows(inventory.to_list())
     print("Inventory saved successfully to", INVENTORY_FILE_PATH)
 
 
 def add_product(inventory: Inventory) -> None:
-    product = ProductFactory.create_from_input()
-    if inventory.find_product(product.product_id):
-        print("Product already exists.")
-        return
-    
-    inventory.add_product(product)
-    print("Product added successfully!")
+    try:
+        product = ProductFactory.create_from_input()
+        if inventory.find_product(product.product_id):
+            print("Product already exists.")
+            return
+
+        inventory.add_product(product)
+        print("Product added successfully!")
+    except ValueError as err:
+        print(err)
 
 
 def update_stock(inventory: Inventory) -> None:
     print()
     print("Update Stock")
-    product_id = get_product_id_input()
+    product_id = get_str_input("Product ID (Pxxx): ").strip()
     product = inventory.find_product(product_id)
 
     if product is None:
@@ -97,7 +108,8 @@ def update_stock(inventory: Inventory) -> None:
 
 def find_product(inventory: Inventory) -> Product | None:
     print()
-    product_id = get_product_id_input()
+    product_id = get_str_input("Product ID (Pxxx): ").strip()
+
     product = inventory.find_product(product_id)
     if product is None:
         print("This Product is not in Inventory.")
@@ -137,7 +149,8 @@ def exit_app(inventory: Inventory):
 
 def main() -> None:
     try:
-        inventory: Inventory = load_inventory()
+        inventory: Inventory = Inventory()
+        load_inventory(inventory_file, inventory, Supplier("S001", "BobBuilds", "bob@bobbuilds.bob"))
 
         menu: list[dict] = [
             {"text": "Exit", "action": lambda: exit_app(inventory)},
