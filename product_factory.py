@@ -5,7 +5,7 @@ from supplier import Supplier
 from utils import (
     get_email_input,
     get_int_input,
-    get_float_input,
+    get_positive_float_input,
     get_str_input,
 )
 
@@ -48,7 +48,7 @@ class ProductFactory:
         product_type = get_str_input("Product Type: ").strip()
         product_id = get_str_input("Product ID (Pxxx): ").strip()
         name = get_str_input("Product Name: ").strip()
-        price = get_float_input("Price (omit $ sign): ")
+        price = get_positive_float_input("Price (omit $ sign): ")
         stock = get_int_input("Stock Quantity: ", 0)
         supplier_id = get_str_input("Supplier ID (Sxxx): ").strip()
         supplier_name = get_str_input("Supplier Name: ")
