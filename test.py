@@ -1,117 +1,137 @@
-from digital_product import DigitalProduct
+# Test your implementation
+
+import importlib
+from pathlib import Path
+import csv
+
+import pytest
+from pytest import CaptureFixture, MonkeyPatch
+from pytest_mock import MockerFixture
+
+from discount_strategy import DiscountStrategy
 from inventory import Inventory
 from order import Order
+from percentage_discount import PercentageDiscount
 from physical_product import PhysicalProduct
-from product import Product
+from product_factory import ProductFactory
+from student_discount import StudentDiscount
 from supplier import Supplier
+from utils import get_positive_float_input
 
-# 2.2
-# Deleting a variable to a supplier object only removes that variable's
-# reference. The object still exists. Each Product object is still able to
-# retrieve the supplier object because they still hold a reference regardless of
-# that deleted variable.
-
-print("\n===TEST 2.2===")
-supplier1 = Supplier("S1", "S1", "S@S1.sg")
-phy_prod = PhysicalProduct("P001", "p1", 1.0, 100, 5, supplier1)
-digi_prod = DigitalProduct("P002", "p2", 1.0, 100, 5, supplier1)
-
-del supplier1
-
-phy_prod.display_information()
-print()
-digi_prod.display_information()
+smart_auditor = importlib.import_module("inf1103-labs-smart-auditor")
 
 
-# 3.2
-# Product objects still "work" after removal from the Inventory because only a
-# reference to the Product object is stored in Inventory.
-
-print("\n===TEST 3.2===")
-inventory = Inventory()
-inventory.add_product(phy_prod)
-inventory.remove_product(phy_prod.product_id)
-
-try:
-    phy_prod.display_information()
-    print("\nTest passed, product still works.")
-except Exception as err:
-    print("\nTest failed.")
-    print(err)
+supplier = Supplier("S009", "SK", "sk@sk.com")
+product = PhysicalProduct("P009", "Thumbdrive", 100, 5, 0.1, supplier)
+product_order_quantity = 1
+order = Order("O001", PercentageDiscount(10))
+order.add_order_line(
+    product,
+    product_order_quantity,
+)
 
 
-# 4.3
-# Assuming "add the same Product" means the same Product object, then there
-# should still be 1. Since each Order object will instantiation their own
-# OrderLine, then there will be 2 OrderLine objects.
-
-print("\n===TEST 4.3===")
-order1 = Order("O1")
-order1.add_order_line(phy_prod, 1)
-order1.add_order_line(digi_prod, 1)
-order1.display()
-
-order2 = Order("O2")
-order2.add_order_line(phy_prod, 1)
-order2.add_order_line(digi_prod, 1)
-order2.display()
-
-order1.remove_order_line(1)
-order1.display()
-
-order2.remove_order_line(2)
-order2.display()
+def test_calculates_totals_with_strategy(mocker: MockerFixture):
+    """Order calculates totals through a DiscountStrategy and contains no discount if/elif logic."""
+    spy = mocker.spy(PercentageDiscount, "apply")
+    order.calulate_total()
+    spy.assert_called()
 
 
-# 6.2
-print("\n===TEST 6.2===")
+def test_new_discount_strategy():
+    """A new discount strategy can be added without changing Order."""
+    arbitrary = 67.67
+
+    class newDiscountStrat(DiscountStrategy):
+        def apply(self, total: float) -> float:
+            return arbitrary
+
+    tmp_order = Order("O067", newDiscountStrat())
+    tmp_order.add_order_line(
+        product,
+        1,
+    )
+    assert tmp_order.calulate_total() == arbitrary
 
 
-def show_product_details(product: Product) -> None:
-    product.display_information()
-    print(product.get_fulfilment_info())
+def test_change_discount_with_setdiscount():
+    """The strategy on an existing order can be changed with set_discount()."""
+    order.set_discount(StudentDiscount())
+    order_lines = order.order_lines
+    assert len(order_lines) == 1
+    assert order_lines[0].product is product
+    assert order_lines[0].quantity == product_order_quantity
 
 
-show_product_details(phy_prod)
-print()
-show_product_details(digi_prod)
-
-try:
-    show_product_details(phy_prod)
-    print()
-    show_product_details(digi_prod)
-    print("\nTest passed, function accepts both Physical and Digital.")
-except Exception as err:
-    print("\nTest failed.")
-    print(err)
-
-# 6.3
-# One expectation that Product class establishes is that all product has a
-# get_fulfilment_info() method which is defined as a abstract method.
-#
-# Yes the code snippet violates LSP as valid inputs to the parent Product class's
-# implementation would raise an error in the DigitalProduct subclass. Given the
-# fact that stock of digital products have no meaning, stock attribute should
-# behave like weight attribute which is defined in PhysicalProduct class and not
-# in Product class. This of course gives rise to the need for type checking
-# before users can update the stock of a Product. However this check is done
-# outside of the Inventory class's purview.
+def test_unknown_product_raise_value_error():
+    """An unknown product type raises a ValueError with a clear message."""
+    with pytest.raises(ValueError, match="Unknown product type: idk"):
+        _ = ProductFactory().create("idk", "P005", "P005", 1.0, 1, supplier)
 
 
-# 7.2
-# Behaves as indented. Only 1 loop and no product type checking.
+@pytest.mark.parametrize(
+    "type, price, stock, order_quant",
+    [
+        ("PHYSICAL", -1, 1, 1),
+        ("PHYSICAL", 1, -1, 1),
+        ("PHYSICAL", 1, 1, -1),
+        ("DIGITAL", -1, 1, 1),
+        ("DIGITAL", 1, -1, 1),
+        ("DIGITAL", 1, 1, -1),
+    ],
+)
+def test_invalid_prices_stock_order_quant_raise_value_error(
+    type, price, stock, order_quant
+):
+    """Invalid prices, stock quantities and order quantities are rejected."""
+    with pytest.raises(ValueError):
+        _ = ProductFactory().create(type, "P005", "P005", price, stock, supplier)
+        tmp_order = Order("O001")
+        tmp_order.add_order_line(product, order_quant)
 
-print("\n===TEST 7.2===")
 
-inventory2 = Inventory()
-inventory2.add_product(phy_prod)
-inventory2.add_product(digi_prod)
-inventory2.display_all()
+@pytest.mark.parametrize(
+    "user_inputs, expects",
+    [
+        (["", "25"], ["Please enter a valid number, e.g. 12.50", "25.0"]),
+        (["one", "25"], ["Please enter a valid number, e.g. 12.50", "25.0"]),
+        (["-1", "25"], ["Please enter a number greater than zero.", "25.0"]),
+    ],
+)
+def test_user_input_validation_(
+    monkeypatch: MonkeyPatch,
+    capsys: CaptureFixture[str],
+    user_inputs: list[str],
+    expects: list[str],
+):
+    """Invalid user input is handled without crashing, and the user is asked again."""
+    iter_user_inputs = iter(user_inputs)
+    monkeypatch.setattr("builtins.input", lambda _: next(iter_user_inputs))
+    print(get_positive_float_input(""))
+    lines = capsys.readouterr().out.splitlines()
+    assert lines == expects
 
-# 7.3
-# Polymorphism is demonstrated because the 2 different classes PhydicalProduct 
-# and DigitalProduct are able to be treated as 1 common based class. Although 
-# treated as a common Product class they still displayed different information 
-# unique to their own class. 
-# LSP supports this becuase it enforces child classes to maintain the same
-# expectations of the parent class. This makes it safe and predictable. 
+
+def test_missing_products_csv(capsys: CaptureFixture[str]):
+    """A missing products file is handled gracefully."""
+    fake_file = Path("./") / "nonexistent_csv.csv"
+    smart_auditor.load_inventory(fake_file, Inventory(), supplier)
+    capture = capsys.readouterr().out.splitlines()[-1]
+    assert capture == f"Products file not found: {smart_auditor.INVENTORY_FILE_PATH}"
+
+
+def test_skip_invalid_row(monkeypatch: MonkeyPatch):
+    """Bad rows in the products file are reported and skipped, and valid rows still load."""
+    monkeypatch.setattr(
+        "csv.DictReader",
+        lambda _: [
+            {
+                "product_type": "PHYSICAL",
+                "product_id": "P01",
+                "name": "P01",
+                "price": 1,
+                "stock_quantity": 1,
+            },
+            {},
+        ],
+    )
