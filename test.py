@@ -120,7 +120,7 @@ def test_missing_products_csv(capsys: CaptureFixture[str]):
     assert capture == f"Products file not found: {smart_auditor.INVENTORY_FILE_PATH}"
 
 
-def test_skip_invalid_row(monkeypatch: MonkeyPatch):
+def test_skip_invalid_row(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]):
     """Bad rows in the products file are reported and skipped, and valid rows still load."""
     monkeypatch.setattr(
         "csv.DictReader",
@@ -131,7 +131,19 @@ def test_skip_invalid_row(monkeypatch: MonkeyPatch):
                 "name": "P01",
                 "price": 1,
                 "stock_quantity": 1,
+                "weight": 1.0,
             },
-            {},
+            {
+                "product_type": "ART",
+                "product_id": "P02",
+                "name": "P02",
+                "price": 1,
+                "stock_quantity": 1,
+            },
         ],
+    )
+    smart_auditor.load_inventory(Path("./data/products.csv"), Inventory(), supplier)
+    assert (
+        capsys.readouterr().out.splitlines()[-1]
+        == "Error loading product in row 2: Unknown product type: ART"
     )

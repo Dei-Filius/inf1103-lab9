@@ -16,6 +16,8 @@ class PhysicalProduct(Product, CanBeShipped):
         supplier: Supplier,
     ) -> None:
         super().__init__(product_id, name, price, stock, supplier)
+        if not (product_id.startswith("P") or product_id[1:].isdigit()):
+            raise ValueError("A product ID must start with P for physical and is followed by digits.")
         self.__weight: float = weight
 
     def display_information(self) -> None:
@@ -30,6 +32,6 @@ class PhysicalProduct(Product, CanBeShipped):
 
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data["type"] = "PHYSICAL"
+        data["product_type"] = "PHYSICAL"
         data["weight"] = self.__weight
         return data

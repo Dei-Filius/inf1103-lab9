@@ -13,6 +13,8 @@ class DigitalProduct(Product):
         supplier: Supplier,
     ):
         super().__init__(product_id, name, price, stock, supplier)
+        if not (product_id.startswith("D") or product_id[1:].isdigit()):
+            raise ValueError("A product ID must start with D for digital and is followed by digits.")
         self.__download_size: int = download_size
 
     def display_information(self) -> None:
@@ -24,6 +26,6 @@ class DigitalProduct(Product):
 
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data["type"] = "DIGITAL"
+        data["product_type"] = "DIGITAL"
         data["download_size"] = self.__download_size
         return data

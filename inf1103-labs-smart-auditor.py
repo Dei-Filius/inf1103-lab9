@@ -19,7 +19,6 @@ def load_inventory(
 ) -> bool:
     print()
     print("Loading inventory...")
-    inventory = Inventory()
     try:
         file = inventory_file.open("r")
     except FileNotFoundError:
@@ -31,15 +30,15 @@ def load_inventory(
         with file:
             # product_type, product_id, name, price, stock_quantity
             csv_reader = csv.DictReader(file)
-            for idx, product_info in enumerate(csv_reader):
+            for idx, product_info in enumerate(csv_reader, 1):
                 try:
                     product_info: dict
                     product = ProductFactory().create(
-                        product_info["product_type"],
+                        product_info["product_type"].upper(),
                         product_info["product_id"],
                         product_info["name"],
-                        product_info["price"],
-                        product_info["stock_quantity"],
+                        float(product_info["price"]),
+                        int(product_info["stock_quantity"]),
                         supplier,
                         weight=product_info.get("weight"),
                         download_size=product_info.get("download_size"),
@@ -53,7 +52,7 @@ def load_inventory(
 def save_inventory(inventory: Inventory) -> None:
     print()
     print("Saving inventory...")
-    with open("output.csv", mode="w", newline="") as file:
+    with inventory_file.open("w") as file:
         csv_writer = csv.DictWriter(
             file,
             fieldnames=[
@@ -62,7 +61,10 @@ def save_inventory(inventory: Inventory) -> None:
                 "name",
                 "price",
                 "stock_quantity",
+                "weight",
+                "download_size",
             ],
+            extrasaction="ignore",
         )
         csv_writer.writeheader()
         csv_writer.writerows(inventory.to_list())
@@ -151,11 +153,14 @@ def exit_app(inventory: Inventory):
 def main() -> None:
     try:
         inventory: Inventory = Inventory()
-        if load_inventory(
-            inventory_file,
-            inventory,
-            Supplier("S001", "BobBuilds", "bob@bobbuilds.bob"),
-        ) is False:
+        if (
+            load_inventory(
+                inventory_file,
+                inventory,
+                Supplier("S001", "BobBuilds", "bob@bobbuilds.bob"),
+            )
+            is False
+        ):
             print("Exiting...")
             return
 
