@@ -16,7 +16,7 @@ inventory_file: Path = Path(INVENTORY_FILE_PATH)
 
 def load_inventory(
     inventory_file: Path, inventory: Inventory, supplier: Supplier
-) -> None:
+) -> bool:
     print()
     print("Loading inventory...")
     inventory = Inventory()
@@ -26,7 +26,7 @@ def load_inventory(
         # inventory_file.parent.mkdir(parents=True, exist_ok=True)
         # inventory_file.touch()
         print(f"Products file not found: {INVENTORY_FILE_PATH}")
-        raise FileNotFoundError
+        return False
     else:
         with file:
             # product_type, product_id, name, price, stock_quantity
@@ -47,7 +47,7 @@ def load_inventory(
                     inventory.add_product(product)
                 except ValueError as err:
                     print(f"Error loading product in row {idx}: {err}")
-    return
+    return True
 
 
 def save_inventory(inventory: Inventory) -> None:
@@ -151,11 +151,13 @@ def exit_app(inventory: Inventory):
 def main() -> None:
     try:
         inventory: Inventory = Inventory()
-        load_inventory(
+        if load_inventory(
             inventory_file,
             inventory,
             Supplier("S001", "BobBuilds", "bob@bobbuilds.bob"),
-        )
+        ) is False:
+            print("Exiting...")
+            return
 
         menu: list[dict] = [
             {"text": "Exit", "action": lambda: exit_app(inventory)},
@@ -184,7 +186,7 @@ INVENTORY MANAGEMENT SYSTEM
                 exit_app(inventory)
                 break
 
-    except KeyboardInterrupt, FileNotFoundError:
+    except KeyboardInterrupt:
         print("Exiting...")
 
 
