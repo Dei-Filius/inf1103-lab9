@@ -26,6 +26,7 @@ def load_inventory(
         # inventory_file.parent.mkdir(parents=True, exist_ok=True)
         # inventory_file.touch()
         print(f"Products file not found: {INVENTORY_FILE_PATH}")
+        raise FileNotFoundError
     else:
         with file:
             # product_type, product_id, name, price, stock_quantity
@@ -34,7 +35,7 @@ def load_inventory(
                 try:
                     product_info: dict
                     product = ProductFactory().create(
-                        product_info["product__type"],
+                        product_info["product_type"],
                         product_info["product_id"],
                         product_info["name"],
                         product_info["price"],
@@ -150,7 +151,11 @@ def exit_app(inventory: Inventory):
 def main() -> None:
     try:
         inventory: Inventory = Inventory()
-        load_inventory(inventory_file, inventory, Supplier("S001", "BobBuilds", "bob@bobbuilds.bob"))
+        load_inventory(
+            inventory_file,
+            inventory,
+            Supplier("S001", "BobBuilds", "bob@bobbuilds.bob"),
+        )
 
         menu: list[dict] = [
             {"text": "Exit", "action": lambda: exit_app(inventory)},
@@ -179,10 +184,7 @@ INVENTORY MANAGEMENT SYSTEM
                 exit_app(inventory)
                 break
 
-    except json.decoder.JSONDecodeError:
-        print(f"Error decoding json file {INVENTORY_FILE_PATH}")
-        print("Exiting...")
-    except KeyboardInterrupt:
+    except KeyboardInterrupt, FileNotFoundError:
         print("Exiting...")
 
 
